@@ -61,7 +61,7 @@ export default function AdminDashboard() {
     try {
       await api.post("/admin/users", Object.fromEntries(form));
       formElement.reset();
-      setMessage("User created.");
+      alert("User created.");
       try {
         await loadAll();
       } catch {

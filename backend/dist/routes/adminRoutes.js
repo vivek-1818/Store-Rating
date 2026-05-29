@@ -15,9 +15,9 @@ router.get("/dashboard", async (req, res) => {
     const totalStores = await prisma_1.default.store.count();
     const totalRatings = await prisma_1.default.rating.count();
     res.json({
-        totalUsers: totalUsers,
-        totalStores: totalStores,
-        totalRatings: totalRatings,
+        totalUsers,
+        totalStores,
+        totalRatings,
     });
 });
 router.post("/users", async (req, res) => {
@@ -26,11 +26,11 @@ router.post("/users", async (req, res) => {
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         const user = await prisma_1.default.user.create({
             data: {
-                name: name,
-                email: email,
+                name,
+                email,
                 password: hashedPassword,
-                address: address,
-                role: role,
+                address,
+                role,
             },
         });
         res.status(201).json({
@@ -52,15 +52,30 @@ router.get("/users", async (req, res) => {
         const role = String(req.query.role ?? "");
         const sortBy = String(req.query.sortBy ?? "name");
         const order = req.query.order === "desc" ? "desc" : "asc";
-        const allowedSortFields = ["name", "email", "address", "role"];
         const users = await prisma_1.default.user.findMany({
             where: {
-                ...(name && { name: { contains: name, mode: "insensitive" } }),
-                ...(email && { email: { contains: email, mode: "insensitive" } }),
-                ...(address && { address: { contains: address, mode: "insensitive" } }),
-                ...(role && { role: role }),
+                ...(name && {
+                    name: {
+                        contains: name,
+                        mode: "insensitive",
+                    },
+                }),
+                ...(email && {
+                    email: {
+                        contains: email,
+                        mode: "insensitive",
+                    },
+                }),
+                ...(address && {
+                    address: {
+                        contains: address,
+                        mode: "insensitive",
+                    },
+                }),
+                ...(role && {
+                    role: role,
+                }),
             },
-            orderBy: allowedSortFields.includes(sortBy) ? { [sortBy]: order } : { name: order },
             select: {
                 id: true,
                 name: true,
@@ -68,6 +83,17 @@ router.get("/users", async (req, res) => {
                 address: true,
                 role: true,
             },
+        });
+        users.sort((a, b) => {
+            const first = String(a[sortBy] ?? "");
+            const second = String(b[sortBy] ?? "");
+            return order === "asc"
+                ? first.localeCompare(second, undefined, {
+                    sensitivity: "base",
+                })
+                : second.localeCompare(first, undefined, {
+                    sensitivity: "base",
+                });
         });
         res.json(users);
     }
@@ -93,9 +119,9 @@ router.post("/stores", async (req, res) => {
         }
         const store = await prisma_1.default.store.create({
             data: {
-                name: name,
-                email: email,
-                address: address,
+                name,
+                email,
+                address,
                 ownerId,
             },
         });
@@ -117,29 +143,55 @@ router.get("/stores", async (req, res) => {
         const address = String(req.query.address ?? "");
         const sortBy = String(req.query.sortBy ?? "name");
         const order = req.query.order === "desc" ? "desc" : "asc";
-        const allowedSortFields = ["name", "email", "address"];
         const stores = await prisma_1.default.store.findMany({
             where: {
-                ...(name && { name: { contains: name, mode: "insensitive" } }),
-                ...(email && { email: { contains: email, mode: "insensitive" } }),
-                ...(address && { address: { contains: address, mode: "insensitive" } }),
+                ...(name && {
+                    name: {
+                        contains: name,
+                        mode: "insensitive",
+                    },
+                }),
+                ...(email && {
+                    email: {
+                        contains: email,
+                        mode: "insensitive",
+                    },
+                }),
+                ...(address && {
+                    address: {
+                        contains: address,
+                        mode: "insensitive",
+                    },
+                }),
             },
-            orderBy: allowedSortFields.includes(sortBy) ? { [sortBy]: order } : { name: order },
             include: {
                 ratings: true,
             },
         });
-        const result = stores.map((store) => {
-            return {
-                id: store.id,
-                name: store.name,
-                email: store.email,
-                address: store.address,
-                rating: (0, avgRating_1.getAverageRating)(store.ratings),
-            };
-        });
+        const result = stores.map((store) => ({
+            id: store.id,
+            name: store.name,
+            email: store.email,
+            address: store.address,
+            rating: (0, avgRating_1.getAverageRating)(store.ratings),
+        }));
         if (sortBy === "rating") {
-            result.sort((a, b) => order === "desc" ? b.rating - a.rating : a.rating - b.rating);
+            result.sort((a, b) => order === "desc"
+                ? b.rating - a.rating
+                : a.rating - b.rating);
+        }
+        else {
+            result.sort((a, b) => {
+                const first = String(a[sortBy] ?? "");
+                const second = String(b[sortBy] ?? "");
+                return order === "asc"
+                    ? first.localeCompare(second, undefined, {
+                        sensitivity: "base",
+                    })
+                    : second.localeCompare(first, undefined, {
+                        sensitivity: "base",
+                    });
+            });
         }
         res.json(result);
     }
